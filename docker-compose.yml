@@ -1,0 +1,48 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: secret
+      POSTGRES_DB: tm_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mongodb:
+    image: mongo:5.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: secret
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodb_data:/data/db
+
+  backend:
+    build: ./back-end
+    ports:
+      - "3001:3001"
+    environment:
+      DB_HOST: postgres
+      DB_USER: admin
+      DB_PASSWORD: secret
+      DB_NAME: tm_db
+      MONGO_URI: mongodb://admin:secret@mongodb:27017
+    depends_on:
+      - postgres
+      - mongodb
+
+  frontend:
+    build: ./front-end
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  mongodb_data:

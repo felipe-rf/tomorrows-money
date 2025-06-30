@@ -1,0 +1,29 @@
+projeto_web/
+├── backend/                  # Aplicação backend
+│   ├── src/
+│   │   ├── config/          # Configurações do banco de dados, ambiente
+│   │   ├── controllers/     # Lógica das rotas
+│   │   ├── models/          # Modelos do banco de dados
+│   │   ├── routes/          # Definição de rotas
+│   │   ├── services/        # Lógica de negócio
+│   │   ├── middlewares/     # Middlewares (autenticação, etc.)
+│   │   ├── utils/           # Utilitários
+│   │   └── app.js           # Aplicação principal
+│   ├── Dockerfile
+│   └── package.json
+│
+├── frontend/                # Aplicação frontend
+│   ├── public/
+│   ├── src/
+│   │   ├── components/      # Componentes reutilizáveis
+│   │   ├── contexts/        # Contextos do React
+│   │   ├── pages/           # Páginas da aplicação
+│   │   ├── services/        # Chamadas à API
+│   │   ├── styles/          # Estilos globais
+│   │   ├── App.js           # Componente principal
+│   │   └── index.js         # Ponto de entrada
+│   ├── Dockerfile
+│   └── package.json
+│
+├── docker-compose.yml       # Configuração dos containers
+└── README.md                # Documentação do projeto
