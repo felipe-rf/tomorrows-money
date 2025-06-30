@@ -133,33 +133,7 @@ O projeto utiliza as seguintes configurações padrão no Docker:
 - `npm run preview` - Visualiza o build de produção
 - `npm run typecheck` - Verifica tipos TypeScript
 
-## 🌟 Funcionalidades
-
-- [ ] Autenticação de usuários
-- [ ] Gestão de contas financeiras
-- [ ] Registro de transações
-- [ ] Relatórios financeiros
-- [ ] Dashboard interativo
-- [ ] Sistema de logs
-
-## 🤝 Contribuição
-
-1. Faça um fork do projeto
-2. Crie uma branch para sua feature (`git checkout -b feature/AmazingFeature`)
-3. Commit suas mudanças (`git commit -m 'Add some AmazingFeature'`)
-4. Push para a branch (`git push origin feature/AmazingFeature`)
-5. Abra um Pull Request
-
-## 📄 Licença
-
-Este projeto está sob a licença ISC.
-
 ## 👥 Autores
 
-- Desenvolvido como projeto acadêmico para a disciplina de Desenvolvimento Web 2
+- Desenvolvido como projeto acadêmico para a disciplina de Programação para Web 2
 
----
-
-## 🚀 Status do Projeto
-
-🚧 **Em Desenvolvimento** - Este projeto está atualmente em fase de desenvolvimento ativo.
