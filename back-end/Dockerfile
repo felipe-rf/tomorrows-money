@@ -1,24 +1,20 @@
-##PLACEHOLDER##
+# Use Node.js official image
+FROM node:18-alpine
 
-# Estágio de construção
-FROM node:20-alpine AS builder
-
+# Create app directory and user
 WORKDIR /app
 
+# Copy package files first (better caching)
 COPY package*.json ./
-RUN npm install
 
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy source code
 COPY . .
-RUN npm run build
 
-# Estágio de produção
-FROM node:16-alpine
-
-WORKDIR /app
-
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/dist ./dist
-
+# Expose port
 EXPOSE 3001
-CMD ["node", "dist/app.js"]
+
+# Start the application
+CMD ["npm", "start"]

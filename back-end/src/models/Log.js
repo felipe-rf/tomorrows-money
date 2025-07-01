@@ -1,4 +1,4 @@
-import { Schema, model } from 'mongoose';
+const { Schema, model } = require("mongoose");
 
 const LogSchema = new Schema({
   log_id: { type: String, required: true },
@@ -10,7 +10,9 @@ const LogSchema = new Schema({
   new_value: Schema.Types.Mixed,
   ip_address: String,
   user_agent: String,
-  created_at: { type: Date, default: Date.now }
+  created_at: { type: Date, default: Date.now },
 });
 
-export const Log = model('Log', LogSchema);
+const Log = model("Log", LogSchema);
+
+module.exports = { Log };

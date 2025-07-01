@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   postgres:
@@ -22,26 +22,27 @@ services:
     volumes:
       - mongodb_data:/data/db
 
-  backend:
-    build: ./back-end
-    ports:
-      - "3001:3001"
-    environment:
-      DB_HOST: postgres
-      DB_USER: admin
-      DB_PASSWORD: secret
-      DB_NAME: tm_db
-      MONGO_URI: mongodb://admin:secret@mongodb:27017
-    depends_on:
-      - postgres
-      - mongodb
+  # backend:
+  #   build: ./back-end
+  #   ports:
+  #     - "3001:3001"
+  #   environment:
+  #     POSTGRES_HOST: postgres
+  #     POSTGRES_USER: admin
+  #     POSTGRES_PASSWORD: secret
+  #     POSTGRES_DB: tm_db
+  #     MONGO_URI: mongodb://admin:secret@mongodb:27017
+  #     PORT: 3001
+  #   depends_on:
+  #     - postgres
+  #     - mongodb
 
-  frontend:
-    build: ./front-end
-    ports:
-      - "3000:3000"
-    depends_on:
-      - backend
+  # frontend:
+  #   build: ./front-end
+  #   ports:
+  #     - "3000:3000"
+  #   depends_on:
+  #     - backend
 
 volumes:
   postgres_data:

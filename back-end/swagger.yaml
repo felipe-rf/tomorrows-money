@@ -1,0 +1,1471 @@
+openapi: 3.0.3
+info:
+  title: Tomorrow's Money API
+  description: |
+    A comprehensive RESTful API for personal finance management.
+
+    ## Authentication
+    This API uses JWT Bearer token authentication. Include the token in the Authorization header:
+    ```
+    Authorization: Bearer <your-token>
+    ```
+
+    ## User Types
+    - **Regular User (type=0)**: Can manage their own data
+    - **Admin User (type=1)**: Can manage all users and access admin endpoints
+    - **Viewer User (type=2)**: Read-only access to assigned user's data
+
+  version: 1.0.0
+servers:
+  - url: http://localhost:3001/api
+    description: Development server
+
+tags:
+  - name: Authentication
+    description: User authentication and authorization
+  - name: Users
+    description: User management operations
+  - name: Transactions
+    description: Financial transaction management
+  - name: Categories
+    description: Category management for organizing transactions
+  - name: Tags
+    description: Tag management for flexible transaction labeling
+  - name: Goals
+    description: Financial goal tracking and progress management
+  - name: Logs
+    description: System audit logs and activity tracking
+
+paths:
+  # ===== AUTHENTICATION ENDPOINTS =====
+  /auth/register:
+    post:
+      tags: [Authentication]
+      summary: Register a new user
+      description: Create a new user account with email and password
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, email, password]
+              properties:
+                name:
+                  type: string
+                  example: "John Doe"
+                email:
+                  type: string
+                  format: email
+                  example: "john.doe@example.com"
+                password:
+                  type: string
+                  format: password
+                  minLength: 6
+                  example: "password123"
+      responses:
+        "201":
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "500":
+          $ref: "#/components/responses/InternalServerError"
+
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: User login
+      description: Authenticate user and receive JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email:
+                  type: string
+                  format: email
+                  example: "john.doe@example.com"
+                password:
+                  type: string
+                  format: password
+                  example: "password123"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                    example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  user:
+                    $ref: "#/components/schemas/User"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  # ===== USER ENDPOINTS =====
+  /users:
+    get:
+      tags: [Users]
+      summary: Get all users (Admin only)
+      description: Retrieve list of all users with filtering options
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [user, admin, viewer]
+          description: Filter by user type
+        - name: active
+          in: query
+          schema:
+            type: boolean
+          description: Filter by active status
+        - name: search
+          in: query
+          schema:
+            type: string
+          description: Search by name or email
+        - name: summary
+          in: query
+          schema:
+            type: boolean
+          description: Get summary statistics
+        - name: with_stats
+          in: query
+          schema:
+            type: boolean
+          description: Include user statistics
+      responses:
+        "200":
+          description: Users retrieved successfully
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total:
+                    type: integer
+                  page:
+                    type: integer
+                  totalPages:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/User"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+    post:
+      tags: [Users]
+      summary: Create new user (Admin only)
+      description: Create a new user account
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserInput"
+      responses:
+        "201":
+          description: User created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /users/{id}:
+    get:
+      tags: [Users]
+      summary: Get user by ID
+      description: Get specific user details (own profile or admin access)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: User ID or 'me' for current user
+      responses:
+        "200":
+          description: User details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    put:
+      tags: [Users]
+      summary: Update user
+      description: Update user details (own profile or admin access)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: User ID or 'me' for current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdate"
+      responses:
+        "200":
+          description: User updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+    delete:
+      tags: [Users]
+      summary: Delete user (Admin only)
+      description: Delete user account (cannot delete self)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: User deleted successfully
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /users/{id}/stats:
+    get:
+      tags: [Users]
+      summary: Get user statistics
+      description: Get comprehensive user statistics including financial data
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: User ID or 'me' for current user
+      responses:
+        "200":
+          description: User statistics retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserStats"
+
+  /users/{id}/deactivate:
+    post:
+      tags: [Users]
+      summary: Deactivate user (Admin only)
+      description: Deactivate user account (soft delete)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User deactivated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /users/{id}/activate:
+    post:
+      tags: [Users]
+      summary: Activate user (Admin only)
+      description: Reactivate deactivated user account
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: User activated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  # ===== TRANSACTION ENDPOINTS =====
+  /transactions:
+    get:
+      tags: [Transactions]
+      summary: Get all transactions
+      description: Retrieve user's transactions with filtering options
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [income, expense]
+        - name: category_id
+          in: query
+          schema:
+            type: integer
+        - name: startDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: endDate
+          in: query
+          schema:
+            type: string
+            format: date
+        - name: summary
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Transactions retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionList"
+
+    post:
+      tags: [Transactions]
+      summary: Create transaction
+      description: Create a new financial transaction
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionInput"
+      responses:
+        "201":
+          description: Transaction created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+  /transactions/{id}:
+    get:
+      tags: [Transactions]
+      summary: Get transaction by ID
+      description: Get specific transaction details
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Transaction details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+    put:
+      tags: [Transactions]
+      summary: Update transaction
+      description: Update existing transaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TransactionInput"
+      responses:
+        "200":
+          description: Transaction updated successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Transaction"
+
+    delete:
+      tags: [Transactions]
+      summary: Delete transaction
+      description: Delete a transaction
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Transaction deleted successfully
+
+  # ===== CATEGORY ENDPOINTS =====
+  /categories:
+    get:
+      tags: [Categories]
+      summary: Get all categories
+      description: Retrieve user's categories with filtering options
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - name: summary
+          in: query
+          schema:
+            type: boolean
+        - name: with_counts
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Categories retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CategoryList"
+
+    post:
+      tags: [Categories]
+      summary: Create category
+      description: Create a new transaction category
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryInput"
+      responses:
+        "201":
+          description: Category created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+
+  /categories/{id}:
+    get:
+      tags: [Categories]
+      summary: Get category by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+
+    put:
+      tags: [Categories]
+      summary: Update category
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryInput"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+
+    delete:
+      tags: [Categories]
+      summary: Delete category
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Category deleted successfully
+
+  /categories/{id}/transactions:
+    get:
+      tags: [Categories]
+      summary: Get category transactions
+      description: Get all transactions for a specific category
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TransactionList"
+
+  # ===== TAG ENDPOINTS =====
+  /tags:
+    get:
+      tags: [Tags]
+      summary: Get all tags
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: popular
+          in: query
+          schema:
+            type: boolean
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagList"
+
+    post:
+      tags: [Tags]
+      summary: Create tag
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TagInput"
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+
+  /tags/{id}:
+    get:
+      tags: [Tags]
+      summary: Get tag by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+
+    put:
+      tags: [Tags]
+      summary: Update tag
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TagInput"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Tag"
+
+    delete:
+      tags: [Tags]
+      summary: Delete tag
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Tag deleted successfully
+
+  /tags/{id}/stats:
+    get:
+      tags: [Tags]
+      summary: Get tag statistics
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagStats"
+
+  # ===== GOAL ENDPOINTS =====
+  /goals:
+    get:
+      tags: [Goals]
+      summary: Get all goals
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, completed, overdue]
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high]
+        - name: progress
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoalList"
+
+    post:
+      tags: [Goals]
+      summary: Create goal
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalInput"
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+
+  /goals/{id}:
+    get:
+      tags: [Goals]
+      summary: Get goal by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+
+    put:
+      tags: [Goals]
+      summary: Update goal
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/GoalInput"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+
+    delete:
+      tags: [Goals]
+      summary: Delete goal
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Goal deleted successfully
+
+  /goals/{id}/progress:
+    post:
+      tags: [Goals]
+      summary: Add progress to goal
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                amount:
+                  type: number
+                  format: float
+                  example: 100.50
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Goal"
+
+    get:
+      tags: [Goals]
+      summary: Get goal progress details
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GoalProgress"
+
+  # ===== LOG ENDPOINTS =====
+  /logs:
+    get:
+      tags: [Logs]
+      summary: Get all logs
+      description: Retrieve system logs with filtering (admin can see all, users see own)
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/Limit"
+        - name: action
+          in: query
+          schema:
+            type: string
+        - name: entity_type
+          in: query
+          schema:
+            type: string
+        - name: summary
+          in: query
+          schema:
+            type: boolean
+        - name: activity
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogList"
+
+    post:
+      tags: [Logs]
+      summary: Create log entry
+      description: Manually create a log entry (usually automated)
+      security:
+        - bearerAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LogInput"
+      responses:
+        "201":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Log"
+
+  /logs/{id}:
+    get:
+      tags: [Logs]
+      summary: Get log by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Log"
+
+    delete:
+      tags: [Logs]
+      summary: Delete log (Admin only)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: Log deleted successfully
+
+  /logs/entity/{type}/{id}:
+    get:
+      tags: [Logs]
+      summary: Get logs for specific entity
+      description: Get all logs related to a specific entity (transaction, goal, etc.)
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: type
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [transaction, category, tag, goal, user]
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LogList"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+      description: Page number for pagination
+
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 10
+      description: Number of items per page
+
+  schemas:
+    # ===== USER SCHEMAS =====
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+        type:
+          type: string
+          enum: [user, admin, viewer]
+          example: "user"
+        active:
+          type: boolean
+          example: true
+        viewable_user_id:
+          type: integer
+          description: "For viewer accounts - which user's data they can view"
+          example: 5
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+
+    UserInput:
+      type: object
+      required: [name, email, password]
+      properties:
+        name:
+          type: string
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "john.doe@example.com"
+        password:
+          type: string
+          format: password
+          minLength: 6
+          example: "password123"
+        type:
+          type: string
+          enum: [user, admin, viewer]
+          default: user
+        active:
+          type: boolean
+          default: true
+
+    UserUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+          minLength: 6
+        type:
+          type: string
+          enum: [user, admin, viewer]
+        active:
+          type: boolean
+
+    UserStats:
+      type: object
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        financial:
+          type: object
+          properties:
+            total_transactions:
+              type: integer
+            total_income:
+              type: number
+              format: float
+            total_expenses:
+              type: number
+              format: float
+            net_balance:
+              type: number
+              format: float
+        organization:
+          type: object
+          properties:
+            total_categories:
+              type: integer
+        goals:
+          type: object
+          properties:
+            total_goals:
+              type: integer
+            completed_goals:
+              type: integer
+            completion_rate:
+              type: integer
+
+    # ===== TRANSACTION SCHEMAS =====
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: integer
+        amount:
+          type: number
+          format: float
+        type:
+          type: string
+          enum: [income, expense]
+        description:
+          type: string
+        date:
+          type: string
+          format: date
+        user_id:
+          type: integer
+        category_id:
+          type: integer
+        category:
+          $ref: "#/components/schemas/Category"
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tag"
+        created_at:
+          type: string
+          format: date-time
+
+    TransactionInput:
+      type: object
+      required: [amount, type, description]
+      properties:
+        amount:
+          type: number
+          format: float
+          example: 150.75
+        type:
+          type: string
+          enum: [income, expense]
+          example: "expense"
+        description:
+          type: string
+          example: "Grocery shopping"
+        date:
+          type: string
+          format: date
+          example: "2025-01-15"
+        category_id:
+          type: integer
+          example: 2
+        tag_ids:
+          type: array
+          items:
+            type: integer
+          example: [1, 3, 5]
+
+    TransactionList:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        totalPages:
+          type: integer
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Transaction"
+
+    # ===== CATEGORY SCHEMAS =====
+    Category:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        color:
+          type: string
+          example: "#FF6B6B"
+        icon:
+          type: string
+          example: "shopping-cart"
+        user_id:
+          type: integer
+        transaction_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    CategoryInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: "Groceries"
+        color:
+          type: string
+          example: "#FF6B6B"
+        icon:
+          type: string
+          example: "shopping-cart"
+
+    CategoryList:
+      type: object
+      properties:
+        total:
+          type: integer
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Category"
+
+    # ===== TAG SCHEMAS =====
+    Tag:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        color:
+          type: string
+        user_id:
+          type: integer
+        usage_count:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    TagInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: "recurring"
+        color:
+          type: string
+          example: "#4ECDC4"
+
+    TagList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Tag"
+
+    TagStats:
+      type: object
+      properties:
+        tag:
+          $ref: "#/components/schemas/Tag"
+        usage_stats:
+          type: object
+          properties:
+            total_transactions:
+              type: integer
+            total_amount:
+              type: number
+              format: float
+            last_used:
+              type: string
+              format: date-time
+
+    # ===== GOAL SCHEMAS =====
+    Goal:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        description:
+          type: string
+        target_amount:
+          type: number
+          format: float
+        current_amount:
+          type: number
+          format: float
+        deadline:
+          type: string
+          format: date
+        priority:
+          type: string
+          enum: [low, medium, high]
+        is_completed:
+          type: boolean
+        user_id:
+          type: integer
+        category_id:
+          type: integer
+        progress_percentage:
+          type: number
+          format: float
+        remaining_amount:
+          type: number
+          format: float
+        days_remaining:
+          type: integer
+        created_at:
+          type: string
+          format: date-time
+
+    GoalInput:
+      type: object
+      required: [name, target_amount]
+      properties:
+        name:
+          type: string
+          example: "Emergency Fund"
+        description:
+          type: string
+          example: "Save for emergency expenses"
+        target_amount:
+          type: number
+          format: float
+          example: 5000.00
+        deadline:
+          type: string
+          format: date
+          example: "2025-12-31"
+        priority:
+          type: string
+          enum: [low, medium, high]
+          default: medium
+        category_id:
+          type: integer
+
+    GoalList:
+      type: object
+      properties:
+        total:
+          type: integer
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Goal"
+
+    GoalProgress:
+      type: object
+      properties:
+        goal:
+          $ref: "#/components/schemas/Goal"
+        milestones:
+          type: array
+          items:
+            type: object
+            properties:
+              percentage:
+                type: integer
+              amount:
+                type: number
+                format: float
+              achieved:
+                type: boolean
+              achieved_date:
+                type: string
+                format: date-time
+
+    # ===== LOG SCHEMAS =====
+    Log:
+      type: object
+      properties:
+        log_id:
+          type: string
+        user_id:
+          type: string
+        action:
+          type: string
+        entity_type:
+          type: string
+        entity_id:
+          type: string
+        old_value:
+          type: object
+        new_value:
+          type: object
+        ip_address:
+          type: string
+        user_agent:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+
+    LogInput:
+      type: object
+      required: [action, entity_type]
+      properties:
+        action:
+          type: string
+          example: "create"
+        entity_type:
+          type: string
+          example: "transaction"
+        entity_id:
+          type: string
+        old_value:
+          type: object
+        new_value:
+          type: object
+
+    LogList:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        totalPages:
+          type: integer
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Log"
+
+    # ===== ERROR SCHEMAS =====
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          example: "An error occurred"
+        details:
+          type: string
+          example: "Additional error details"
+
+  responses:
+    BadRequest:
+      description: Bad request - Invalid input data
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    Unauthorized:
+      description: Unauthorized - Invalid or missing authentication
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    Forbidden:
+      description: Forbidden - Insufficient permissions
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    InternalServerError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
