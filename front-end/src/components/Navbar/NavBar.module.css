@@ -1,0 +1,29 @@
+.navbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 100%;
+  width: 100%;
+  padding: 1% 2%;
+  background-color: #eeeeee;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  height: 60px; /* Fixed height to prevent layout shift */
+  box-sizing: border-box;
+  /* Add hardware acceleration for better performance */
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+.logo {
+  margin-right: 200px;
+}
+
+/* Add this class to your main content to account for fixed navbar */
+.main-content {
+  margin-top: 60px; /* Same as navbar height */
+  min-height: calc(100vh - 60px);
+}

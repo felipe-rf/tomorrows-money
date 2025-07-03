@@ -7,7 +7,6 @@ class LogController {
    * Helper method to build where clause based on user type
    */
   static buildUserFilter(req, additionalWhere = {}) {
-    console.log("🔍 User info:", req.user);
     const user_id = req.user.id;
     const user_type = req.user.type;
 
@@ -19,7 +18,6 @@ class LogController {
       where.user_id = user_id.toString();
     }
 
-    console.log("🔍 Built where clause:", where);
     return where;
   }
 

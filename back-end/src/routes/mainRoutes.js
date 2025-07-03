@@ -39,6 +39,11 @@ router.put(
   checkWritePermissions,
   UserController.update
 );
+
+// Self-deletion route (before /:id route to match /me first)
+router.delete("/users/me", authenticate, UserController.deleteSelf);
+
+// Regular deletion route (with write permissions check)
 router.delete(
   "/users/:id",
   authenticate,
@@ -47,18 +52,6 @@ router.delete(
 );
 
 // Sub-resources and actions
-router.post(
-  "/users/:id/deactivate",
-  authenticate,
-  checkWritePermissions,
-  UserController.deactivate
-);
-router.post(
-  "/users/:id/activate",
-  authenticate,
-  checkWritePermissions,
-  UserController.activate
-);
 router.get("/users/:id/stats", authenticate, UserController.getStats);
 
 // ===== TRANSACTION ROUTES =====
