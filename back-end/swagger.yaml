@@ -1150,7 +1150,7 @@ components:
         category_id:
           type: integer
           example: 2
-        tag_ids:
+        tags:
           type: array
           items:
             type: integer

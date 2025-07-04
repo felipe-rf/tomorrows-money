@@ -156,7 +156,7 @@ export class UserService {
    */
   static async deactivate(id: number): Promise<User> {
     try {
-      const response = await api.post<User>(`/users/${id}/deactivate`);
+      const response = await api.put<User>(`/users/${id}`, { active: false });
       return response.data;
     } catch (error: any) {
       throw new Error(
@@ -170,7 +170,7 @@ export class UserService {
    */
   static async activate(id: number): Promise<User> {
     try {
-      const response = await api.post<User>(`/users/${id}/activate`);
+      const response = await api.put<User>(`/users/${id}`, { active: true });
       return response.data;
     } catch (error: any) {
       throw new Error(error.response?.data?.error || "Failed to activate user");

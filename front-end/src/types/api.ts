@@ -47,19 +47,37 @@ export interface Tag {
 export interface Goal {
   id: number;
   name: string;
-  description?: string;
   target_amount: number;
   current_amount: number;
-  deadline?: string;
+  target_date?: string;
+  category_id?: number;
+  description?: string;
+  color: string;
+  icon?: string;
   priority: "low" | "medium" | "high";
+  auto_deduct: boolean;
   is_completed: boolean;
   user_id: number;
-  category_id?: number;
-  progress_percentage: number;
-  remaining_amount: number;
-  days_remaining?: number;
   created_at: string;
   updated_at: string;
+  // Relations
+  user?: {
+    id: number;
+    name: string;
+    email: string;
+  };
+  category?: {
+    id: number;
+    name: string;
+    color: string;
+    icon?: string;
+  };
+  // Calculated fields
+  progress_percentage?: number;
+  remaining_amount?: number;
+  days_remaining?: number;
+  is_overdue?: boolean;
+  required_daily_savings?: number;
 }
 
 export interface AuthResponse {

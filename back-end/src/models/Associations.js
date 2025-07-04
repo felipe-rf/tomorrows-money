@@ -2,6 +2,7 @@ const { User } = require("./User");
 const { Category } = require("./Category");
 const { Transaction } = require("./Transaction");
 const { Tag } = require("./Tag");
+const { Goal } = require("./Goal");
 
 // User associations
 User.hasMany(Transaction, {
@@ -12,6 +13,11 @@ User.hasMany(Transaction, {
 User.hasMany(Category, {
   foreignKey: "user_id",
   as: "categories",
+});
+
+User.hasMany(Goal, {
+  foreignKey: "user_id",
+  as: "goals",
 });
 
 // Category associations
@@ -36,6 +42,12 @@ Transaction.belongsTo(Category, {
   as: "category",
 });
 
+// Goal associations
+Goal.belongsTo(User, {
+  foreignKey: "user_id",
+  as: "user",
+});
+
 // Many-to-many relationship between Transaction and Tag
 Transaction.belongsToMany(Tag, {
   through: "TransactionTags",
@@ -56,4 +68,5 @@ module.exports = {
   Category,
   Transaction,
   Tag,
+  Goal,
 };

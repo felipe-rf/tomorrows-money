@@ -10,11 +10,28 @@ import {
 } from "@mantine/core";
 import { useUser } from "../../contexts/UserContext";
 import { useNavigate } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { UserService } from "../../api";
+import { stat } from "fs";
 export function Dashboard() {
   const { user, logout } = useUser();
   const navigate = useNavigate();
+  const [stats, setStats] = useState({
+    financial: {
+      total_transactions: 0,
+      total_income: 0,
+      total_expenses: 0,
+      net_balance: 0,
+    },
+    organization: {
+      total_categories: 0,
+    },
+    goals: {
+      total_goals: 0,
+      completed_goals: 0,
+      completion_rate: 0,
+    },
+  });
 
   const handleLogout = () => {
     logout();
@@ -27,8 +44,28 @@ export function Dashboard() {
       console.log("User statistics:", data);
       return data;
     };
-
-    fetchData();
+    fetchData()
+      .then((data) => {
+        setStats({
+          financial: {
+            total_transactions: data.financial.total_transactions,
+            total_income: data.financial.total_income,
+            total_expenses: data.financial.total_expenses,
+            net_balance: data.financial.net_balance,
+          },
+          organization: {
+            total_categories: data.organization.total_categories,
+          },
+          goals: {
+            total_goals: data.goals.total_goals,
+            completed_goals: data.goals.completed_goals,
+            completion_rate: data.goals.completion_rate,
+          },
+        });
+      })
+      .catch((error) => {
+        console.error("Error fetching user stats:", error);
+      });
   }, []);
 
   return (
@@ -61,96 +98,51 @@ export function Dashboard() {
               <Card shadow="sm" padding="lg" radius="md" withBorder>
                 <Stack gap="xs">
                   <Text size="sm" c="dimmed">
-                    Transações
+                    Despesas
                   </Text>
-                  <Title order={2} c="blue">
-                    0
+                  <Title order={2} c="red">
+                    {stats.financial.total_expenses.toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    }) || "R$ 0,00"}
                   </Title>
                 </Stack>
               </Card>
             </Grid.Col>
-
+            <Grid.Col span={{ base: 12, md: 4 }}>
+              <Card shadow="sm" padding="lg" radius="md" withBorder>
+                <Stack gap="xs">
+                  <Text size="sm" c="dimmed">
+                    Lucro
+                  </Text>
+                  <Title order={2} c="green">
+                    {stats.financial.total_income.toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    }) || "R$ 0,00"}{" "}
+                  </Title>
+                </Stack>
+              </Card>
+            </Grid.Col>
             <Grid.Col span={{ base: 12, md: 4 }}>
               <Card shadow="sm" padding="lg" radius="md" withBorder>
                 <Stack gap="xs">
                   <Text size="sm" c="dimmed">
                     Saldo
                   </Text>
-                  <Title order={2} c="green">
-                    R$ 0,00
+                  <Title
+                    order={2}
+                    c={stats.financial.net_balance > 0 ? "green" : "red"}
+                  >
+                    {stats.financial.net_balance.toLocaleString("pt-BR", {
+                      style: "currency",
+                      currency: "BRL",
+                    }) || "R$ 0,00"}
                   </Title>
-                  <Text size="xs" c="dimmed">
-                    Adicione suas primeiras transações
-                  </Text>
-                </Stack>
-              </Card>
-            </Grid.Col>
-
-            <Grid.Col span={{ base: 12, md: 4 }}>
-              <Card shadow="sm" padding="lg" radius="md" withBorder>
-                <Stack gap="xs">
-                  <Text size="sm" c="dimmed">
-                    Metas
-                  </Text>
-                  <Title order={2} c="orange">
-                    0
-                  </Title>
-                  <Text size="xs" c="dimmed">
-                    Defina suas metas financeiras
-                  </Text>
                 </Stack>
               </Card>
             </Grid.Col>
           </Grid>
-
-          {/* Quick Actions */}
-          <Card shadow="sm" padding="lg" radius="md" withBorder>
-            <Stack gap="md">
-              <Title order={3}>Ações Rápidas</Title>
-              <Group>
-                <Button
-                  variant="filled"
-                  onClick={() => navigate("/transactions/new")}
-                >
-                  Nova Transação
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => navigate("/categories")}
-                >
-                  Gerenciar Categorias
-                </Button>
-                <Button variant="outline" onClick={() => navigate("/goals")}>
-                  Minhas Metas
-                </Button>
-              </Group>
-            </Stack>
-          </Card>
-
-          {/* User Info Card */}
-          <Card shadow="sm" padding="lg" radius="md" withBorder>
-            <Stack gap="md">
-              <Title order={3}>Informações da Conta</Title>
-              <Grid>
-                <Grid.Col span={{ base: 12, md: 6 }}>
-                  <Text size="sm" c="dimmed">
-                    Tipo de Usuário
-                  </Text>
-                  <Text fw={500} tt="capitalize">
-                    {user?.type}
-                  </Text>
-                </Grid.Col>
-                <Grid.Col span={{ base: 12, md: 6 }}>
-                  <Text size="sm" c="dimmed">
-                    Status
-                  </Text>
-                  <Text fw={500} c={user?.active ? "green" : "red"}>
-                    {user?.active ? "Ativo" : "Inativo"}
-                  </Text>
-                </Grid.Col>
-              </Grid>
-            </Stack>
-          </Card>
         </Stack>
       </Container>
     </>

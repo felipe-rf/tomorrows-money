@@ -5,6 +5,12 @@ import { ProtectedRoute, PublicRoute } from "../components/ProtectedRoute";
 import Dashboard from "../pages/Dashboard/Dashboard";
 import UserProfile from "../pages/User/UserProfile";
 import CreateViewer from "../pages/User/CreateViewer";
+import Categories from "../pages/Categories";
+import Tags from "../pages/Tags";
+import Transactions from "../pages/Transactions";
+import Goals from "../pages/Goals";
+import Users from "../pages/Users";
+import Logs from "../pages/Logs";
 const MainRoutes = () => {
   return (
     // In your MainRoutes.tsx
@@ -55,6 +61,54 @@ const MainRoutes = () => {
         element={
           <ProtectedRoute>
             <CreateViewer />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/categories"
+        element={
+          <ProtectedRoute>
+            <Categories />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/tags"
+        element={
+          <ProtectedRoute>
+            <Tags />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/transactions"
+        element={
+          <ProtectedRoute>
+            <Transactions />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/goals"
+        element={
+          <ProtectedRoute>
+            <Goals />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/users"
+        element={
+          <ProtectedRoute>
+            <Users />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/logs"
+        element={
+          <ProtectedRoute>
+            <Logs />
           </ProtectedRoute>
         }
       />

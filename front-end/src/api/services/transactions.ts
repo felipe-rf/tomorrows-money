@@ -17,7 +17,7 @@ export interface CreateTransactionData {
   description: string;
   date?: string;
   category_id?: number;
-  tag_ids?: number[];
+  tags?: number[];
 }
 
 export class TransactionService {
@@ -66,6 +66,9 @@ export class TransactionService {
   static async create(data: CreateTransactionData): Promise<Transaction> {
     try {
       const response = await api.post<Transaction>("/transactions", data);
+      console.log("Transaction created:", response.data);
+      console.log("Transaction created:", data);
+
       return response.data;
     } catch (error: any) {
       throw new Error(

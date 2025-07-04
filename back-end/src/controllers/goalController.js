@@ -150,20 +150,7 @@ class GoalController {
       await transaction.commit();
 
       // Reload with associations
-      const result = await Goal.findByPk(newGoal.id, {
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["id", "name", "email"],
-          },
-          {
-            model: Category,
-            as: "category",
-            attributes: ["id", "name", "color", "icon"],
-          },
-        ],
-      });
+      const result = await Goal.findByPk(newGoal.id);
 
       return res.status(201).json(result);
     } catch (error) {
@@ -259,18 +246,6 @@ class GoalController {
           ["target_date", "ASC"], // Earlier deadlines first
           ["created_at", "DESC"],
         ],
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["id", "name", "email"],
-          },
-          {
-            model: Category,
-            as: "category",
-            attributes: ["id", "name", "color", "icon"],
-          },
-        ],
       });
 
       // Calculate progress for each goal
@@ -300,18 +275,6 @@ class GoalController {
 
       const goal = await Goal.findOne({
         where,
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["id", "name", "email"],
-          },
-          {
-            model: Category,
-            as: "category",
-            attributes: ["id", "name", "color", "icon"],
-          },
-        ],
       });
 
       if (!goal) {
@@ -423,20 +386,7 @@ class GoalController {
       await transaction.commit();
 
       // Reload with associations
-      const result = await Goal.findByPk(existingGoal.id, {
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["id", "name", "email"],
-          },
-          {
-            model: Category,
-            as: "category",
-            attributes: ["id", "name", "color", "icon"],
-          },
-        ],
-      });
+      const result = await Goal.findByPk(existingGoal.id);
 
       return res.json(result);
     } catch (error) {
@@ -513,20 +463,7 @@ class GoalController {
       await transaction.commit();
 
       // Reload with associations
-      const result = await Goal.findByPk(goal.id, {
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["id", "name", "email"],
-          },
-          {
-            model: Category,
-            as: "category",
-            attributes: ["id", "name", "color", "icon"],
-          },
-        ],
-      });
+      const result = await Goal.findByPk(goal.id);
 
       return res.json({
         goal: result,
@@ -552,18 +489,6 @@ class GoalController {
 
       const goal = await Goal.findOne({
         where,
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["id", "name", "email"],
-          },
-          {
-            model: Category,
-            as: "category",
-            attributes: ["id", "name", "color", "icon"],
-          },
-        ],
       });
 
       if (!goal) {
@@ -752,18 +677,6 @@ class GoalController {
 
       const goals = await Goal.findAll({
         where,
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["id", "name", "email"],
-          },
-          {
-            model: Category,
-            as: "category",
-            attributes: ["id", "name", "color", "icon"],
-          },
-        ],
         order: [["current_amount", "DESC"]],
       });
 
@@ -789,18 +702,6 @@ class GoalController {
 
       const goals = await Goal.findAll({
         where,
-        include: [
-          {
-            model: User,
-            as: "user",
-            attributes: ["id", "name", "email"],
-          },
-          {
-            model: Category,
-            as: "category",
-            attributes: ["id", "name", "color", "icon"],
-          },
-        ],
         order: [
           [
             sequelize.literal(

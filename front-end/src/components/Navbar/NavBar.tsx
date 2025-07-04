@@ -1,5 +1,5 @@
 import { IconHeart, IconLogout, IconUser } from "@tabler/icons-react";
-import { Avatar, Menu } from "@mantine/core";
+import { Avatar, Button, Menu } from "@mantine/core";
 import styles from "./NavBar.module.css";
 import { useNavigate } from "react-router-dom";
 import { useUser } from "../../contexts/UserContext";
@@ -39,10 +39,20 @@ export function NavBar() {
   return (
     <header className={styles.navbar}>
       <div className="cursor-pointer" onClick={() => navigate("/")}>
-        {" "}
         Tomorrows Money
       </div>
-
+      <div className={styles.navButtons}>
+        <Button onClick={() => navigate("/transactions")}>Transações</Button>
+        <Button onClick={() => navigate("/categories")}>Categorias</Button>
+        <Button onClick={() => navigate("/tags")}>Tags</Button>
+        <Button onClick={() => navigate("/goals")}> Metas </Button>
+        {user?.type === "admin" && (
+          <>
+            <Button onClick={() => navigate("/users")}> Usuários </Button>
+            <Button onClick={() => navigate("/logs")}> Logs </Button>
+          </>
+        )}
+      </div>
       <Menu shadow="md" width={200} onOpen={handleMenuOpen}>
         <Menu.Target>
           <Avatar

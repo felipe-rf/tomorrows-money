@@ -13,59 +13,53 @@ Goal.init(
     user_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
+      references: {
+        model: "users",
+        key: "id",
+      },
       onDelete: "CASCADE",
     },
     name: {
-      type: DataTypes.STRING(100),
+      type: DataTypes.STRING(255),
       allowNull: false,
       validate: {
         notEmpty: true,
+        len: [1, 255],
       },
     },
     target_amount: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
       validate: {
-        isDecimal: true,
         min: 0.01,
       },
     },
     current_amount: {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: false,
-      defaultValue: 0,
+      defaultValue: 0.0,
       validate: {
-        isDecimal: true,
         min: 0,
       },
     },
     target_date: {
-      type: DataTypes.DATEONLY,
+      type: DataTypes.DATE,
       allowNull: true,
-      validate: {
-        isDate: true,
-        isAfter: new Date().toISOString(), // Optional: ensure future date
-      },
-    },
-    category_id: {
-      type: DataTypes.INTEGER,
-      allowNull: true,
-      onDelete: "SET NULL",
     },
     description: {
       type: DataTypes.TEXT,
       allowNull: true,
     },
     color: {
-      type: DataTypes.STRING(7), // HEX color
+      type: DataTypes.STRING,
       allowNull: false,
-      defaultValue: "#3b82f6", // Default blue
+      defaultValue: "#3b82f6",
       validate: {
-        is: /^#[0-9A-F]{6}$/i, // HEX color validation
+        is: /^#[0-9A-Fa-f]{6}$/,
       },
     },
     icon: {
-      type: DataTypes.STRING(50),
+      type: DataTypes.STRING,
       allowNull: true,
     },
     is_completed: {

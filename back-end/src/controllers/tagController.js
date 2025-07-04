@@ -1,5 +1,7 @@
 const { Tag } = require("../models/Tag");
 const { Transaction } = require("../models/Transaction");
+const { User } = require("../models/User");
+const { Category } = require("../models/Category");
 const { sequelize } = require("../config/sequelize");
 const { Op } = require("sequelize");
 
@@ -43,6 +45,8 @@ class TagController {
 
     try {
       const tagData = req.body;
+      const user_id = req.user.id;
+      const user_type = req.user.type;
 
       // Validate required fields
       if (!tagData.name) {
@@ -50,9 +54,19 @@ class TagController {
         return res.status(400).json({ error: "Tag name is required" });
       }
 
-      // Check if tag with same name already exists
+      // For regular users, force user_id to their own ID
+      // For admins, allow specifying target_user_id or default to their own
+      let target_user_id = user_id;
+      if (user_type === 1 && tagData.target_user_id) {
+        target_user_id = parseInt(tagData.target_user_id);
+      }
+
+      // Check if tag with same name already exists for this user
       const existingTag = await Tag.findOne({
-        where: { name: tagData.name.toLowerCase() },
+        where: {
+          name: tagData.name.toLowerCase(),
+          user_id: target_user_id,
+        },
         transaction,
       });
 
@@ -60,7 +74,7 @@ class TagController {
         await transaction.rollback();
         return res
           .status(400)
-          .json({ error: "Tag with this name already exists" });
+          .json({ error: "Tag with this name already exists for this user" });
       }
 
       // Create the tag
@@ -68,6 +82,7 @@ class TagController {
         {
           name: tagData.name.toLowerCase(),
           color: tagData.color || "#6B7280",
+          user_id: target_user_id,
         },
         { transaction }
       );
@@ -108,18 +123,12 @@ class TagController {
 
   /**
    * Update a tag
-   * Only admins can update tags in this implementation
+   * Regular users can update their own tags, admins can update any tag
    */
   static async update(req, res) {
     const transaction = await sequelize.transaction();
 
     try {
-      // Check if user is admin
-      if (req.user.type !== 1) {
-        await transaction.rollback();
-        return res.status(403).json({ error: "Only admins can update tags" });
-      }
-
       const where = TagController.buildUserFilter(req, {
         id: req.params.id,
       });
@@ -134,11 +143,20 @@ class TagController {
         return res.status(404).json({ error: "Tag not found" });
       }
 
-      // Check if new name conflicts with existing tag
+      // Check ownership for regular users
+      if (req.user.type === 0 && existingTag.user_id !== req.user.id) {
+        await transaction.rollback();
+        return res
+          .status(403)
+          .json({ error: "You can only update your own tags" });
+      }
+
+      // Check if new name conflicts with existing tag for this user
       if (req.body.name && req.body.name.toLowerCase() !== existingTag.name) {
         const nameConflict = await Tag.findOne({
           where: {
             name: req.body.name.toLowerCase(),
+            user_id: existingTag.user_id, // Check within the same user's tags
             id: { [Op.ne]: existingTag.id },
           },
           transaction,
@@ -148,7 +166,7 @@ class TagController {
           await transaction.rollback();
           return res
             .status(400)
-            .json({ error: "Tag with this name already exists" });
+            .json({ error: "Tag with this name already exists for this user" });
         }
       }
 
@@ -173,17 +191,12 @@ class TagController {
 
   /**
    * Delete a tag
-   * Only admins can delete tags in this implementation
+   * Regular users can delete their own tags, admins can delete any tag
    */
   static async delete(req, res) {
     const transaction = await sequelize.transaction();
 
     try {
-      // Check if user is admin
-      if (req.user.type !== 1) {
-        return res.status(403).json({ error: "Only admins can delete tags" });
-      }
-
       const where = TagController.buildUserFilter(req, {
         id: req.params.id,
       });
@@ -195,8 +208,31 @@ class TagController {
         return res.status(404).json({ error: "Tag not found" });
       }
 
+      // Check ownership for regular users
+      if (req.user.type === 0 && tag.user_id !== req.user.id) {
+        await transaction.rollback();
+        return res
+          .status(403)
+          .json({ error: "You can only delete your own tags" });
+      }
+
       // Check if tag is being used by any transactions
+      let transactionWhere = {};
+
+      // For regular users, only check their own transactions
+      if (req.user.type === 0) {
+        transactionWhere.user_id = req.user.id;
+      }
+      // For admins, check all transactions when deleting any tag
+      else if (req.user.type === 1) {
+        // If deleting another user's tag, check that user's transactions
+        if (tag.user_id !== req.user.id) {
+          transactionWhere.user_id = tag.user_id;
+        }
+      }
+
       const transactionCount = await Transaction.count({
+        where: transactionWhere,
         include: [
           {
             model: Tag,
@@ -414,10 +450,14 @@ class TagController {
 
   // Helper methods (private)
   static async handleSearch(req, res, searchTerm, limit) {
+    const whereConditions = {
+      name: { [Op.iLike]: `%${searchTerm.toLowerCase()}%` },
+    };
+
+    const where = TagController.buildUserFilter(req, whereConditions);
+
     const tags = await Tag.findAll({
-      where: {
-        name: { [Op.iLike]: `%${searchTerm.toLowerCase()}%` },
-      },
+      where,
       order: [
         [
           sequelize.literal(
@@ -435,14 +475,26 @@ class TagController {
 
   static async handlePopular(req, res, limit, user_id) {
     let transactionWhere = {};
+    let tagWhere = {};
 
+    // Build where clauses based on user permissions
     if (req.user.type === 0) {
       transactionWhere.user_id = req.user.id;
+      tagWhere.user_id = req.user.id;
     } else if (req.user.type === 1 && user_id) {
       transactionWhere.user_id = user_id;
+      tagWhere.user_id = user_id;
+    } else if (req.user.type === 1) {
+      // Admin without specific user_id - no user filter on tags
+      // But still need to filter transactions if needed
+    } else if (req.user.type === 2) {
+      const viewableUserId = req.user.viewable_user_id || req.user.id;
+      transactionWhere.user_id = viewableUserId;
+      tagWhere.user_id = viewableUserId;
     }
 
     const popularTags = await Tag.findAll({
+      where: tagWhere,
       include: [
         {
           model: Transaction,
@@ -471,14 +523,25 @@ class TagController {
 
   static async handleWithStats(req, res, user_id) {
     let transactionWhere = {};
+    let tagWhere = {};
 
+    // Build where clauses based on user permissions
     if (req.user.type === 0) {
       transactionWhere.user_id = req.user.id;
+      tagWhere.user_id = req.user.id;
     } else if (req.user.type === 1 && user_id) {
       transactionWhere.user_id = user_id;
+      tagWhere.user_id = user_id;
+    } else if (req.user.type === 1) {
+      // Admin without specific user_id - no user filter needed
+    } else if (req.user.type === 2) {
+      const viewableUserId = req.user.viewable_user_id || req.user.id;
+      transactionWhere.user_id = viewableUserId;
+      tagWhere.user_id = viewableUserId;
     }
 
     const tags = await Tag.findAll({
+      where: tagWhere,
       include: [
         {
           model: Transaction,

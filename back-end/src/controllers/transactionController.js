@@ -104,14 +104,65 @@ class TransactionController {
         { transaction }
       );
 
+      // Handle tag associations if provided
       if (req.body.tags && Array.isArray(req.body.tags)) {
+        console.log("🏷️  Setting tags:", req.body.tags);
+        console.log(
+          "🏷️  User type:",
+          user_type,
+          "User ID:",
+          user_id,
+          "Target user ID:",
+          target_user_id
+        );
+
         const tagIds = req.body.tags.map((id) => parseInt(id));
+
+        // Build tag where clause based on user permissions
+        let tagWhere = { id: { [Op.in]: tagIds } };
+        if (user_type === 0) {
+          // Regular users can only use their own tags
+          tagWhere.user_id = user_id;
+        } else if (user_type === 1) {
+          // Admins can use tags from the target user
+          tagWhere.user_id = target_user_id;
+        } else if (user_type === 2) {
+          // Viewers can only use tags from their viewable user
+          const viewableUserId = req.user.viewable_user_id || user_id;
+          tagWhere.user_id = viewableUserId;
+        }
+
+        console.log("🏷️  Tag where clause:", tagWhere);
+
+        // First, let's see all tags for this user to debug
+        const allUserTags = await Tag.findAll({
+          where: { user_id: tagWhere.user_id },
+          transaction,
+        });
+        console.log(
+          "🏷️  All tags for user:",
+          allUserTags.map((t) => ({
+            id: t.id,
+            name: t.name,
+            user_id: t.user_id,
+          }))
+        );
+
         const tags = await Tag.findAll({
-          where: { id: { [Op.in]: tagIds } },
+          where: tagWhere,
           transaction,
         });
 
+        console.log(
+          "🏷️  Found tags:",
+          tags.map((t) => ({ id: t.id, name: t.name, user_id: t.user_id }))
+        );
+
+        if (tags.length === 0 && tagIds.length > 0) {
+          console.log("⚠️  No tags found matching criteria");
+        }
         await newTransaction.setTags(tags, { transaction });
+        console.log("🏷️  Tags set on transaction, count:", tags.length);
       }
 
       await transaction.commit();
@@ -295,13 +346,34 @@ class TransactionController {
 
       await existingTransaction.update(updateData, { transaction });
 
+      // Handle tag associations if provided
       if (tags && Array.isArray(tags)) {
-        const tagIds = tags.map((id) => parseInt(id));
+        console.log("🏷️  Updating tags:", tags);
+        const tagIdNumbers = tags.map((id) => parseInt(id));
+
+        // Build tag where clause based on user permissions
+        let tagWhere = { id: { [Op.in]: tagIdNumbers } };
+        if (req.user.type === 0) {
+          // Regular users can only use their own tags
+          tagWhere.user_id = req.user.id;
+        } else if (req.user.type === 1) {
+          // Admins can use tags from the transaction owner
+          tagWhere.user_id = existingTransaction.user_id;
+        } else if (req.user.type === 2) {
+          // Viewers can only use tags from their viewable user
+          const viewableUserId = req.user.viewable_user_id || req.user.id;
+          tagWhere.user_id = viewableUserId;
+        }
+
         const tagObjects = await Tag.findAll({
-          where: { id: { [Op.in]: tagIds } },
+          where: tagWhere,
           transaction,
         });
 
+        console.log(
+          "🏷️  Found tags for update:",
+          tagObjects.map((t) => ({ id: t.id, name: t.name }))
+        );
         await existingTransaction.setTags(tagObjects, { transaction });
       }
 

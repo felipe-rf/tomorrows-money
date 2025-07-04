@@ -133,6 +133,7 @@ function determineAction(method, path) {
  */
 function determineEntityType(path) {
   if (path.includes("/auth/")) return "auth";
+  if (path.includes("/users")) return "user";
   if (path.includes("/transactions")) return "transaction";
   if (path.includes("/categories")) return "category";
   if (path.includes("/tags")) return "tag";
