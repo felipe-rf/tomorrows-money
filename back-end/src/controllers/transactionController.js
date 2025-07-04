@@ -17,12 +17,8 @@ class TransactionController {
 
     // If user type is 0 (regular user), filter by user_id
     // If user type is 1 (admin), no user filter needed
-    // If user type is 2 (viewer), filter by viewable_user_id
     if (user_type === 0) {
       where.user_id = user_id;
-    } else if (user_type === 2) {
-      const viewableUserId = req.user.viewable_user_id || user_id;
-      where.user_id = viewableUserId;
     }
 
     return where;
@@ -32,14 +28,6 @@ class TransactionController {
    * Create a new transaction
    */
   static async create(req, res) {
-    // Check write permissions for viewers
-    if (req.user.type === 2) {
-      return res.status(403).json({
-        error:
-          "Viewer accounts have read-only access. Contact an administrator for write permissions.",
-      });
-    }
-
     const transaction = await sequelize.transaction();
 
     try {
@@ -126,10 +114,6 @@ class TransactionController {
         } else if (user_type === 1) {
           // Admins can use tags from the target user
           tagWhere.user_id = target_user_id;
-        } else if (user_type === 2) {
-          // Viewers can only use tags from their viewable user
-          const viewableUserId = req.user.viewable_user_id || user_id;
-          tagWhere.user_id = viewableUserId;
         }
 
         console.log("🏷️  Tag where clause:", tagWhere);
@@ -359,12 +343,7 @@ class TransactionController {
         } else if (req.user.type === 1) {
           // Admins can use tags from the transaction owner
           tagWhere.user_id = existingTransaction.user_id;
-        } else if (req.user.type === 2) {
-          // Viewers can only use tags from their viewable user
-          const viewableUserId = req.user.viewable_user_id || req.user.id;
-          tagWhere.user_id = viewableUserId;
         }
-
         const tagObjects = await Tag.findAll({
           where: tagWhere,
           transaction,

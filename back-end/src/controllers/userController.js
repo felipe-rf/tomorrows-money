@@ -5,7 +5,6 @@ const { Goal } = require("../models/Goal");
 const { sequelize } = require("../config/sequelize");
 const { Op } = require("sequelize");
 const bcrypt = require("bcryptjs");
-const { getViewableUserId } = require("../middlewares/permissionsMiddleware");
 
 class UserController {
   /**
@@ -19,12 +18,8 @@ class UserController {
 
     // If user type is 0 (regular user), can only access their own profile
     // If user type is 1 (admin), can access all users
-    // If user type is 2 (viewer), can access assigned user data
     if (user_type === 0) {
       where.id = user_id;
-    } else if (user_type === 2) {
-      const viewableUserId = req.user.viewable_user_id || user_id;
-      where.id = viewableUserId;
     }
     // Admin (type=1) has no restrictions
 
@@ -35,7 +30,6 @@ class UserController {
    * Create a new user
    * POST /api/users
    * - Admins can create users of any type
-   * - Regular users (type 0) can create viewer users (type 2) that view their data
    */
   static async create(req, res) {
     const transaction = await sequelize.transaction();
@@ -46,8 +40,7 @@ class UserController {
         return res.status(400).json({ error: "Request body is required" });
       }
 
-      const { name, email, password, type, active, viewable_user_id } =
-        req.body;
+      const { name, email, password, type, active } = req.body;
 
       // Validate required fields
       if (!name || !email || !password) {
@@ -67,30 +60,18 @@ class UserController {
         // Admin can create any type of user
         // No restrictions for admins
       } else if (currentUserType === 0) {
-        // Regular user can only create viewer users (type 2)
-        if (requestedType !== 2) {
+        if (requestedType !== 0) {
           await transaction.rollback();
           return res.status(403).json({
-            error: "Regular users can only create viewer accounts (type 2)",
-            allowed_types: [2],
+            error: "Regular users can only create user accounts (type 0)",
+            allowed_types: [0],
             requested_type: requestedType,
           });
         }
-
-        // For regular users creating viewers, the viewer must view their data
-        if (viewable_user_id && viewable_user_id !== currentUserId) {
-          await transaction.rollback();
-          return res.status(403).json({
-            error: "You can only create viewers for your own account",
-            your_user_id: currentUserId,
-            requested_viewable_id: viewable_user_id,
-          });
-        }
       } else {
-        // Viewer users (type 2) cannot create other users
         await transaction.rollback();
         return res.status(403).json({
-          error: "Viewer accounts cannot create other users",
+          error: "Cannot create other users",
         });
       }
 
@@ -120,36 +101,6 @@ class UserController {
           .json({ error: "Password must be at least 6 characters long" });
       }
 
-      // Validate viewable_user_id for viewer accounts
-      let finalViewableUserId = null;
-      if (requestedType === 2) {
-        if (currentUserType === 0) {
-          // Regular user creating viewer: viewer must view them
-          finalViewableUserId = currentUserId;
-        } else if (currentUserType === 1) {
-          // Admin creating viewer: can specify any valid user
-          if (viewable_user_id) {
-            const viewableUser = await User.findByPk(viewable_user_id, {
-              transaction,
-            });
-            if (!viewableUser) {
-              await transaction.rollback();
-              return res.status(400).json({
-                error: "Specified viewable user does not exist",
-                viewable_user_id: viewable_user_id,
-              });
-            }
-            finalViewableUserId = viewable_user_id;
-          } else {
-            await transaction.rollback();
-            return res.status(400).json({
-              error:
-                "viewable_user_id is required when creating viewer accounts",
-            });
-          }
-        }
-      }
-
       // Hash password
       const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -159,7 +110,6 @@ class UserController {
         password: hashedPassword,
         type: requestedType,
         active: active !== undefined ? active : true,
-        viewable_user_id: finalViewableUserId,
       };
 
       const newUser = await User.create(userData, { transaction });
@@ -175,12 +125,7 @@ class UserController {
         created_by: {
           id: currentUserId,
           type: currentUserType,
-          type_name:
-            currentUserType === 1
-              ? "admin"
-              : currentUserType === 0
-              ? "user"
-              : "viewer",
+          type_name: currentUserType === 1 ? "admin" : "user",
         },
       };
 
@@ -274,23 +219,8 @@ class UserController {
   static async getById(req, res) {
     try {
       const userId = req.params.id === "me" ? req.user.id : req.params.id;
-      const currentUserType = req.user.type;
-      const currentUserId = req.user.id;
 
-      // For viewer users requesting their own profile, return their actual profile
-      // For other requests, use the normal permission filtering
-      let targetUserId;
-      let where;
-
-      if (req.params.id === "me") {
-        // Always return the current user's own profile when requesting "me"
-        targetUserId = currentUserId;
-        where = { id: targetUserId };
-      } else {
-        // For specific user requests, apply normal permission filtering
-        where = UserController.buildUserFilter(req, { id: userId });
-        targetUserId = userId;
-      }
+      const where = UserController.buildUserFilter(req, { id: userId });
 
       const user = await User.findOne({
         where,
@@ -417,11 +347,7 @@ class UserController {
       const currentUserId = req.user.id;
       const currentUserType = req.user.type;
 
-      // Special case: Allow viewers to delete their own account
-      // This bypasses any general read-only restrictions for self-deletion
-      if (currentUserType === 2 && requestedUserId === currentUserId) {
-        // Viewer deleting their own account - allowed
-      } else if (currentUserType !== 1) {
+      if (currentUserType !== 1) {
         // Non-admin users can only delete their own account
         if (requestedUserId !== currentUserId) {
           await transaction.rollback();
@@ -563,62 +489,26 @@ class UserController {
   static async getStats(req, res) {
     try {
       const userId = req.params.id === "me" ? req.user.id : req.params.id;
-      const currentUserType = req.user.type;
-      const currentUserId = req.user.id;
 
-      // For viewer users (type 2), get stats for the user they're viewing
-      let targetUserId = userId;
-      if (currentUserType === 2) {
-        if (
-          req.params.id === "me" ||
-          parseInt(req.params.id) === currentUserId
-        ) {
-          // Viewer requesting their own stats - return viewable user's stats instead
-          targetUserId = req.user.viewable_user_id || currentUserId;
-        } else {
-          // Viewer trying to access someone else's stats
-          const requestedUserId = parseInt(req.params.id);
-          const viewableUserId = req.user.viewable_user_id || currentUserId;
+      const where = UserController.buildUserFilter(req, { id: userId });
+      const user = await User.findOne({ where });
 
-          if (requestedUserId !== viewableUserId) {
-            return res.status(403).json({
-              error: "Viewer can only access their assigned user's statistics",
-              your_viewable_user_id: viewableUserId,
-              requested_user_id: requestedUserId,
-            });
-          }
-          targetUserId = requestedUserId;
-        }
-      } else {
-        // For regular users and admins, use normal permission filtering
-        const where = UserController.buildUserFilter(req, { id: userId });
-        const user = await User.findOne({ where });
-
-        if (!user) {
-          return res.status(404).json({ error: "User not found" });
-        }
-        targetUserId = user.id;
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
       }
 
-      // Get the target user for stats
-      const targetUser = await User.findByPk(targetUserId);
-
-      if (!targetUser) {
-        return res.status(404).json({ error: "Target user not found" });
-      }
-
-      // Get user statistics for the target user
+      // Get user statistics
       const stats = await Promise.all([
-        Transaction.count({ where: { user_id: targetUser.id } }),
+        Transaction.count({ where: { user_id: user.id } }),
         Transaction.sum("amount", {
-          where: { user_id: targetUser.id, type: "income" },
+          where: { user_id: user.id, type: "income" },
         }),
         Transaction.sum("amount", {
-          where: { user_id: targetUser.id, type: "expense" },
+          where: { user_id: user.id, type: "expense" },
         }),
-        Category.count({ where: { user_id: targetUser.id } }),
-        Goal.count({ where: { user_id: targetUser.id } }),
-        Goal.count({ where: { user_id: targetUser.id, is_completed: true } }),
+        Category.count({ where: { user_id: user.id } }),
+        Goal.count({ where: { user_id: user.id } }),
+        Goal.count({ where: { user_id: user.id, is_completed: true } }),
       ]);
 
       const [
@@ -632,12 +522,12 @@ class UserController {
 
       const userStats = {
         user: {
-          id: targetUser.id,
-          name: targetUser.name,
-          email: targetUser.email,
-          type: targetUser.type,
-          active: targetUser.active,
-          member_since: targetUser.created_at,
+          id: user.id,
+          name: user.name,
+          email: user.email,
+          type: user.type,
+          active: user.active,
+          member_since: user.created_at,
         },
         financial: {
           total_transactions: totalTransactions || 0,
@@ -657,15 +547,6 @@ class UserController {
               ? Math.round((completedGoals / totalGoals) * 100)
               : 0,
         },
-        // Add context about who is viewing (for viewer users)
-        viewer_context:
-          currentUserType === 2
-            ? {
-                viewer_id: currentUserId,
-                viewing_user_id: targetUser.id,
-                is_viewing_assigned_user: true,
-              }
-            : undefined,
       };
 
       return res.json(userStats);
@@ -679,7 +560,6 @@ class UserController {
    * Delete current user's own account (self-deletion)
    * DELETE /api/users/me
    * - Any user type can delete their own account
-   * - Bypasses viewer read-only restrictions for self-deletion
    */
   static async deleteSelf(req, res) {
     const transaction = await sequelize.transaction();

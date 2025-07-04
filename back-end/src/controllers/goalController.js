@@ -29,14 +29,6 @@ class GoalController {
    * POST /api/goals
    */
   static async create(req, res) {
-    // Check write permissions for viewers
-    if (req.user.type === 2) {
-      return res.status(403).json({
-        error:
-          "Viewer accounts have read-only access. Contact an administrator for write permissions.",
-      });
-    }
-
     const transaction = await sequelize.transaction();
 
     try {

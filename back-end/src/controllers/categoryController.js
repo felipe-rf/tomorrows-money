@@ -16,14 +16,9 @@ class CategoryController {
 
     // If user type is 0 (regular user), filter by user_id
     // If user type is 1 (admin), no user filter needed unless specified
-    // If user type is 2 (viewer), filter by viewable_user_id
     if (user_type === 0) {
       where.user_id = user_id;
-    } else if (user_type === 2) {
-      const viewableUserId = req.user.viewable_user_id || user_id;
-      where.user_id = viewableUserId;
     }
-
     return where;
   }
 
@@ -31,14 +26,6 @@ class CategoryController {
    * Create a new category
    */
   static async create(req, res) {
-    // Check write permissions for viewers
-    if (req.user.type === 2) {
-      return res.status(403).json({
-        error:
-          "Viewer accounts have read-only access. Contact an administrator for write permissions.",
-      });
-    }
-
     const transaction = await sequelize.transaction();
 
     try {

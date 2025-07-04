@@ -4,7 +4,6 @@ import Register from "../pages/Auth/Register";
 import { ProtectedRoute, PublicRoute } from "../components/ProtectedRoute";
 import Dashboard from "../pages/Dashboard/Dashboard";
 import UserProfile from "../pages/User/UserProfile";
-import CreateViewer from "../pages/User/CreateViewer";
 import Categories from "../pages/Categories";
 import Tags from "../pages/Tags";
 import Transactions from "../pages/Transactions";
@@ -56,14 +55,7 @@ const MainRoutes = () => {
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/profile/viewer"
-        element={
-          <ProtectedRoute>
-            <CreateViewer />
-          </ProtectedRoute>
-        }
-      />
+
       <Route
         path="/categories"
         element={

@@ -18,12 +18,8 @@ class TagController {
 
     // If user type is 0 (regular user), filter by user_id
     // If user type is 1 (admin), no user filter needed
-    // If user type is 2 (viewer), filter by viewable_user_id
     if (user_type === 0) {
       where.user_id = user_id;
-    } else if (user_type === 2) {
-      const viewableUserId = req.user.viewable_user_id || user_id;
-      where.user_id = viewableUserId;
     }
 
     return where;
@@ -33,14 +29,6 @@ class TagController {
    * Create a new tag
    */
   static async create(req, res) {
-    // Check write permissions for viewers
-    if (req.user.type === 2) {
-      return res.status(403).json({
-        error:
-          "Viewer accounts have read-only access. Contact an administrator for write permissions.",
-      });
-    }
-
     const transaction = await sequelize.transaction();
 
     try {
@@ -473,54 +461,6 @@ class TagController {
     return res.json({ data: tags, search_term: searchTerm });
   }
 
-  static async handlePopular(req, res, limit, user_id) {
-    let transactionWhere = {};
-    let tagWhere = {};
-
-    // Build where clauses based on user permissions
-    if (req.user.type === 0) {
-      transactionWhere.user_id = req.user.id;
-      tagWhere.user_id = req.user.id;
-    } else if (req.user.type === 1 && user_id) {
-      transactionWhere.user_id = user_id;
-      tagWhere.user_id = user_id;
-    } else if (req.user.type === 1) {
-      // Admin without specific user_id - no user filter on tags
-      // But still need to filter transactions if needed
-    } else if (req.user.type === 2) {
-      const viewableUserId = req.user.viewable_user_id || req.user.id;
-      transactionWhere.user_id = viewableUserId;
-      tagWhere.user_id = viewableUserId;
-    }
-
-    const popularTags = await Tag.findAll({
-      where: tagWhere,
-      include: [
-        {
-          model: Transaction,
-          as: "transactions",
-          where: transactionWhere,
-          attributes: [],
-          required: true,
-        },
-      ],
-      attributes: [
-        "id",
-        "name",
-        "color",
-        [
-          sequelize.fn("COUNT", sequelize.col("transactions.id")),
-          "usage_count",
-        ],
-      ],
-      group: ["Tag.id"],
-      order: [[sequelize.literal("usage_count"), "DESC"]],
-      limit: Number(limit),
-    });
-
-    return res.json({ data: popularTags });
-  }
-
   static async handleWithStats(req, res, user_id) {
     let transactionWhere = {};
     let tagWhere = {};
@@ -534,10 +474,6 @@ class TagController {
       tagWhere.user_id = user_id;
     } else if (req.user.type === 1) {
       // Admin without specific user_id - no user filter needed
-    } else if (req.user.type === 2) {
-      const viewableUserId = req.user.viewable_user_id || req.user.id;
-      transactionWhere.user_id = viewableUserId;
-      tagWhere.user_id = viewableUserId;
     }
 
     const tags = await Tag.findAll({

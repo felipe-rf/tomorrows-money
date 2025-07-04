@@ -199,16 +199,6 @@ export class UserService {
   }
 
   /**
-   * Create a viewer user (for regular users)
-   */
-  static async createViewer(data: Omit<CreateUserData, "type">): Promise<User> {
-    return UserService.create({
-      ...data,
-      type: 2, // Viewer type
-    });
-  }
-
-  /**
    * Get user type label
    */
   static getUserTypeLabel(type: number): string {
@@ -217,8 +207,6 @@ export class UserService {
         return "Usuário";
       case 1:
         return "Administrador";
-      case 2:
-        return "Visualizador";
       default:
         return "Desconhecido";
     }
@@ -236,12 +224,5 @@ export class UserService {
    */
   static isAdmin(userType: number): boolean {
     return userType === 1;
-  }
-
-  /**
-   * Check if user is viewer
-   */
-  static isViewer(userType: number): boolean {
-    return userType === 2;
   }
 }

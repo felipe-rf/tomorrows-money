@@ -79,7 +79,6 @@ export default function Users() {
       email: "",
       password: "",
       type: 0,
-      viewable_user_id: undefined as number | undefined,
     },
     validate: {
       name: (value) => {
@@ -151,7 +150,6 @@ export default function Users() {
       email: user.email,
       password: "", // Don't pre-fill password
       type: parseInt(user.type.toString()),
-      viewable_user_id: user.viewable_user_id,
     });
     setOpened(true);
   };
@@ -165,9 +163,6 @@ export default function Users() {
         email: values.email.trim(),
         type: values.type,
         ...(values.password && { password: values.password }),
-        ...(values.viewable_user_id && {
-          viewable_user_id: values.viewable_user_id,
-        }),
       };
 
       if (editUser) {
@@ -240,8 +235,6 @@ export default function Users() {
         return "red"; // Admin
       case 0:
         return "blue"; // Regular User
-      case 2:
-        return "yellow"; // Viewer
       default:
         return "gray";
     }
@@ -341,7 +334,6 @@ export default function Users() {
               data={[
                 { value: "1", label: "Administrador" },
                 { value: "0", label: "Usuário" },
-                { value: "2", label: "Visualizador" },
               ]}
               clearable
               {...filtersForm.getInputProps("type")}
@@ -506,25 +498,10 @@ export default function Users() {
               data={[
                 { value: "0", label: "Usuário Regular" },
                 { value: "1", label: "Administrador" },
-                { value: "2", label: "Visualizador" },
               ]}
               {...form.getInputProps("type")}
               required
             />
-            {form.values.type === 2 && (
-              <Select
-                label="Usuário Visualizável"
-                placeholder="Selecione o usuário para visualizar dados"
-                data={users.data
-                  .filter((u) => parseInt(u.type.toString()) !== 2) // Don't allow viewers to view other viewers
-                  .map((u) => ({
-                    value: u.id.toString(),
-                    label: `${u.name} (${u.email})`,
-                  }))}
-                {...form.getInputProps("viewable_user_id")}
-                clearable
-              />
-            )}
             <Group justify="flex-end" mt="md">
               <Button type="submit">
                 {editUser ? "Atualizar Usuário" : "Criar Usuário"}

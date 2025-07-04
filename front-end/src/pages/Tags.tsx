@@ -20,7 +20,6 @@ import {
   ColorInput,
   Card,
   SimpleGrid,
-  Select,
   Alert,
 } from "@mantine/core";
 import { useForm } from "@mantine/form";
@@ -50,7 +49,6 @@ export default function Tags() {
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [viewMode, setViewMode] = useState<"table" | "grid">("table");
-  const [popularTags, setPopularTags] = useState<Tag[]>([]);
   const [statsMode, setStatsMode] = useState(false);
   const [selectedTag, setSelectedTag] = useState<Tag | null>(null);
   const [tagStats, setTagStats] = useState<any>(null);
@@ -83,7 +81,6 @@ export default function Tags() {
 
   useEffect(() => {
     fetchTags();
-    fetchPopularTags();
   }, []);
 
   useEffect(() => {
@@ -100,15 +97,6 @@ export default function Tags() {
       setError(err instanceof Error ? err.message : "Falha ao buscar tags");
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchPopularTags = async () => {
-    try {
-      const data = await TagService.getPopular();
-      setPopularTags(data);
-    } catch (err) {
-      console.error("Falha ao buscar tags populares", err);
     }
   };
 
@@ -171,7 +159,6 @@ export default function Tags() {
       form.reset();
       setEditTag(null);
       // Refresh popular tags after successful create/update
-      fetchPopularTags();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Falha ao salvar tag");
     }
@@ -243,28 +230,6 @@ export default function Tags() {
         >
           {success}
         </Alert>
-      )}
-
-      {popularTags.length > 0 && (
-        <Card withBorder shadow="sm" radius="md" mb="md">
-          <Title order={4} mb="sm">
-            Tags Populares
-          </Title>
-          <Group gap="xs">
-            {popularTags.map((tag) => (
-              <Badge
-                key={tag.id}
-                color={tag.color}
-                variant="filled"
-                size="lg"
-                style={{ cursor: "pointer" }}
-                onClick={() => handleEdit(tag)}
-              >
-                {tag.name}
-              </Badge>
-            ))}
-          </Group>
-        </Card>
       )}
 
       <Paper withBorder p="md" mb="md" radius="md">

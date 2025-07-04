@@ -627,7 +627,7 @@ export default function Goals() {
 
         {goals.data.length === 0 && !loading && (
           <Text p="md" ta="center" c="dimmed">
-            No goals found
+            Nenhuma meta encontrada
           </Text>
         )}
       </Paper>

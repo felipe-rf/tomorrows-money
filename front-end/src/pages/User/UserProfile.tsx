@@ -10,37 +10,16 @@ import {
   Modal,
 } from "@mantine/core";
 import { useUser } from "../../contexts/UserContext";
-import { UserService } from "../../api";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export function UserProfile() {
   const { user, logout, isLoading, deleteUser } = useUser();
   const navigate = useNavigate();
-  const [viewableUserName, setViewableUserName] = useState<string | null>(null);
-  const [loadingViewableUser, setLoadingViewableUser] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
   // Fetch viewable user name if user has viewable_user_id
-  useEffect(() => {
-    const fetchViewableUserName = async () => {
-      if (user?.viewable_user_id) {
-        try {
-          setLoadingViewableUser(true);
-          const viewableUser = await UserService.getById(user.viewable_user_id);
-          setViewableUserName(viewableUser.name);
-        } catch (error) {
-          console.error("Error fetching viewable user:", error);
-          setViewableUserName(`Usuário #${user.viewable_user_id}`); // Fallback to ID
-        } finally {
-          setLoadingViewableUser(false);
-        }
-      }
-    };
-
-    fetchViewableUserName();
-  }, [user?.viewable_user_id]);
 
   if (isLoading) {
     return (
@@ -85,23 +64,11 @@ export function UserProfile() {
       case "1":
         return { label: "Administrador", color: "red" };
       case "viewer":
-      case "2":
-        return { label: "Visualizador", color: "blue" };
       case "user":
       case "0":
       default:
         return { label: "Usuário", color: "green" };
     }
-  };
-
-  const isViewerUser = (type: string | number) => {
-    const userType = typeof type === "string" ? type : type.toString();
-    return userType === "viewer" || userType === "2";
-  };
-
-  const isRegularUser = (type: string | number) => {
-    const userType = typeof type === "string" ? type : type.toString();
-    return userType === "user" || userType === "0";
   };
 
   const userType = getUserTypeLabel(user.type);
@@ -138,22 +105,6 @@ export function UserProfile() {
               </Text>
               <Text fw={500}>{user.email}</Text>
             </div>
-
-            {user.viewable_user_id && (
-              <div>
-                <Text size="sm" c="dimmed">
-                  {isViewerUser(user.type)
-                    ? "Visualizando Usuário"
-                    : "Usuário Visualizável"}
-                </Text>
-                <Text fw={500}>
-                  {loadingViewableUser
-                    ? "Carregando..."
-                    : viewableUserName || `Usuário #${user.viewable_user_id}`}
-                </Text>
-              </div>
-            )}
-
             <div>
               <Text size="sm" c="dimmed">
                 Membro desde
@@ -166,11 +117,6 @@ export function UserProfile() {
 
           <Group justify="space-between" mt="md">
             <Group>
-              {isRegularUser(user.type) && (
-                <Button onClick={() => navigate("/profile/viewer")}>
-                  Criar Perfil Visualizador
-                </Button>
-              )}
               <Button onClick={() => setDeleteModalOpen(true)} color="red">
                 Excluir Conta
               </Button>
